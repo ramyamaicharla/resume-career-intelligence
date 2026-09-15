@@ -5,7 +5,7 @@ from app.routes.resume import router as resume_router
 from app.routes.learning_resources import router as learning_resources_router
 from app.routes.project_recommendation import router as project_recommendation_router
 from app.routes.interview_prep import router as interview_prep_router
-
+from app.routes.resume_improvement import router as resume_improvement_router
 
 app = FastAPI(
     title="Career Building Platform API",
@@ -28,7 +28,7 @@ app.include_router(resume_router)
 app.include_router(learning_resources_router)
 app.include_router(project_recommendation_router)
 app.include_router(interview_prep_router)
-
+app.include_router(resume_improvement_router)
 
 @app.get("/")
 def read_root():

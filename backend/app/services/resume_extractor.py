@@ -48,7 +48,7 @@ async def extract_structured_resume(resume_text: str) -> StructuredResume:
     client = get_gemini_client()
 
     # Get Gemini model
-    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    model = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 
     # Build extraction prompt
     prompt = (
@@ -103,6 +103,7 @@ async def extract_structured_resume(resume_text: str) -> StructuredResume:
         ) from val_err
 
     except APIError as api_err:
+        print("RESUME GEMINI API ERROR:", repr(api_err))
         raise RuntimeError(
             f"Gemini API error during extraction: {str(api_err)}"
         ) from api_err

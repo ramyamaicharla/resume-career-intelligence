@@ -97,6 +97,18 @@ type ProjectRecommendationsResult = {
     recommendations?: ProjectRecommendation[];
 };
 
+type ResumeImprovementSuggestion = {
+    section: string;
+    original_text: string;
+    suggested_text: string;
+    reason: string;
+};
+
+type ResumeImprovementResult = {
+    target_role: string;
+    suggestions: ResumeImprovementSuggestion[];
+};
+
 export default function ResumePage() {
     const [file, setFile] = useState<File | null>(null);
     const [message, setMessage] = useState("");
@@ -128,6 +140,15 @@ export default function ResumePage() {
 
     const [interviewPreparation, setInterviewPreparation] =
         useState<InterviewPreparationResult | null>(null);
+
+    const [resumeImprovement, setResumeImprovement] =
+        useState<ResumeImprovementResult | null>(null);
+
+    const [improvementLoading, setImprovementLoading] =
+        useState(false);
+
+    const [improvementError, setImprovementError] =
+        useState("");
 
     async function handleUpload() {
         if (!file) {
@@ -199,7 +220,11 @@ export default function ResumePage() {
             );
 
             if (!response.ok) {
-                throw new Error("Resume analysis failed");
+                const errorData = await response.json();
+
+                throw new Error(
+                    errorData.detail || "Resume analysis failed"
+                );
             }
 
             const data = await response.json();
@@ -527,6 +552,64 @@ export default function ResumePage() {
         }
     }
 
+    async function handleResumeImprovement() {
+        if (!analysis) {
+            setMessage("Please analyze your resume first.");
+            return;
+        }
+
+        if (!targetRole.trim()) {
+            setMessage("Please enter a target job role.");
+            return;
+        }
+
+        try {
+            setImprovementLoading(true);
+            setImprovementError("");
+            setResumeImprovement(null);
+
+            const response = await fetch(
+                "http://127.0.0.1:8000/resume/improve",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        resume: analysis,
+                        target_role: targetRole,
+                        job_description: jobDescription,
+                    }),
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.detail || "Failed to improve resume."
+                );
+            }
+
+            setResumeImprovement(data);
+            setMessage(
+                "Resume improvement suggestions generated successfully!"
+            );
+        } catch (error) {
+            console.error(error);
+
+            setImprovementError(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to improve resume."
+            );
+
+            setMessage("Failed to improve resume.");
+        } finally {
+            setImprovementLoading(false);
+        }
+    }
+
     return (
         <main className="min-h-screen bg-slate-950 px-6 py-16 text-white">
 
@@ -589,6 +672,17 @@ export default function ResumePage() {
                             className="rounded-lg bg-green-500 px-6 py-3 font-semibold transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                             Analyze Resume
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={handleResumeImprovement}
+                            disabled={!analysis || improvementLoading}
+                            className="rounded-lg bg-violet-500 px-6 py-3 font-semibold transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            {improvementLoading
+                                ? "Improving Resume..."
+                                : "Improve Resume"}
                         </button>
 
                     </div>
