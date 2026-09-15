@@ -1,0 +1,22 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Next.js
+frontend/.next/
+frontend/node_modules/
+
+# Python cache
+backend/.pytest_cache/
+backend/.mypy_cache/
+
+# IDE
+.vscode/
+.idea/
