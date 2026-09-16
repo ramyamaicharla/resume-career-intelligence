@@ -250,6 +250,11 @@ export default function ResumePage() {
 
             setAtsScore(atsData);
 
+            localStorage.setItem(
+                "ats_score",
+                String(atsData.score)
+            );
+
             setMessage("Resume analyzed successfully!");
         } catch (error) {
             console.error(error);
@@ -320,6 +325,12 @@ export default function ResumePage() {
             );
 
             setJobMatch(data);
+            console.log("Job Match Result:", data);
+
+            localStorage.setItem(
+                "job_match",
+                JSON.stringify(data)
+            );
 
             /* --------------------------------
                SKILL GAP ANALYSIS
@@ -367,6 +378,10 @@ export default function ResumePage() {
             );
 
             setSkillGap(skillGapData);
+            localStorage.setItem(
+                "skill_gap",
+                JSON.stringify(skillGapData)
+            );
 
             /* --------------------------------
                CAREER ROADMAP
@@ -399,6 +414,10 @@ export default function ResumePage() {
                 );
 
                 setCareerRoadmap(roadmapData);
+                localStorage.setItem(
+                    "career_roadmap",
+                    JSON.stringify(roadmapData)
+                );
             } else {
                 console.warn(
                     "Career Roadmap request failed."

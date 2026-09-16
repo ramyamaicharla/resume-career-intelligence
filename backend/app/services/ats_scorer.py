@@ -831,8 +831,10 @@ def calculate_ats_score(resume: StructuredResume) -> ATSScoreResponse:
     }
 
     total_score = sum(category_scores.values())
+
     total_score = max(0, min(100, total_score))
 
+    print(f"ATS Compatibility Score: {total_score}")
     strengths = (
         str_contact
         + str_skills
