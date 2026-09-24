@@ -40,9 +40,32 @@ export default function DashboardPage() {
     const [jobMatch, setJobMatch] = useState("--");
     const [skillGap, setSkillGap] = useState("--");
     const [missingSkills, setMissingSkills] = useState<string[]>([]);
-
     const [careerRoadmap, setCareerRoadmap] =
         useState<CareerRoadmap | null>(null);
+
+    const [careerProgress, setCareerProgress] = useState(0);
+    const [completedSkills, setCompletedSkills] =
+        useState<string[]>([]);
+
+    useEffect(() => {
+        const savedCompletedSkills =
+            localStorage.getItem("completed_skills");
+
+        if (savedCompletedSkills) {
+            setCompletedSkills(
+                JSON.parse(savedCompletedSkills)
+            );
+        }
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem(
+            "completed_skills",
+            JSON.stringify(completedSkills)
+        );
+    }, [completedSkills]);
+    const [progressLoading, setProgressLoading] =
+        useState(false);
 
     const [learningResources, setLearningResources] =
         useState<Record<string, LearningResource[]>>({});
@@ -52,10 +75,17 @@ export default function DashboardPage() {
 
     useEffect(() => {
         const loadDashboardData = async () => {
-            const score = localStorage.getItem("ats_score");
-            const jobMatchData = localStorage.getItem("job_match");
-            const skillGapData = localStorage.getItem("skill_gap");
-            const roadmapData = localStorage.getItem("career_roadmap");
+            const score =
+                localStorage.getItem("ats_score");
+
+            const jobMatchData =
+                localStorage.getItem("job_match");
+
+            const skillGapData =
+                localStorage.getItem("skill_gap");
+
+            const roadmapData =
+                localStorage.getItem("career_roadmap");
 
             /* --------------------------------
                ATS SCORE
@@ -74,7 +104,8 @@ export default function DashboardPage() {
 
                 setJobMatch(
                     String(
-                        data.overall_match_percentage ?? "--"
+                        data.overall_match_percentage ??
+                        "--"
                     )
                 );
             }
@@ -88,7 +119,8 @@ export default function DashboardPage() {
 
                 setSkillGap(
                     String(
-                        data.skill_gap_percentage ?? "--"
+                        data.skill_gap_percentage ??
+                        "--"
                     )
                 );
 
@@ -106,6 +138,10 @@ export default function DashboardPage() {
 
                 setCareerRoadmap(data);
 
+                /* --------------------------------
+                   LEARNING + PROJECTS
+                -------------------------------- */
+
                 const resourcesBySkill: Record<
                     string,
                     LearningResource[]
@@ -117,40 +153,44 @@ export default function DashboardPage() {
                 > = {};
 
                 for (const phase of data.phases ?? []) {
-                    /* --------------------------------
-                       LEARNING RESOURCES
-                    -------------------------------- */
+                    /* LEARNING RESOURCES */
 
-                    const resourceResponse = await fetch(
-                        `http://127.0.0.1:8000/learning/resources?skill=${encodeURIComponent(
-                            phase.skill
-                        )}`
-                    );
+                    const resourceResponse =
+                        await fetch(
+                            `http://127.0.0.1:8000/learning/resources?skill=${encodeURIComponent(
+                                phase.skill
+                            )}`
+                        );
 
                     if (resourceResponse.ok) {
                         const resourceData =
                             await resourceResponse.json();
 
-                        resourcesBySkill[phase.skill] =
-                            resourceData.resources ?? [];
+                        resourcesBySkill[
+                            phase.skill
+                        ] =
+                            resourceData.resources ??
+                            [];
                     }
 
-                    /* --------------------------------
-                       PROJECT RECOMMENDATIONS
-                    -------------------------------- */
+                    /* PROJECT RECOMMENDATIONS */
 
-                    const projectResponse = await fetch(
-                        `http://127.0.0.1:8000/projects/recommendations?skill=${encodeURIComponent(
-                            phase.skill
-                        )}`
-                    );
+                    const projectResponse =
+                        await fetch(
+                            `http://127.0.0.1:8000/projects/recommendations?skill=${encodeURIComponent(
+                                phase.skill
+                            )}`
+                        );
 
                     if (projectResponse.ok) {
                         const projectData =
                             await projectResponse.json();
 
-                        projectsBySkill[phase.skill] =
-                            projectData.projects ?? [];
+                        projectsBySkill[
+                            phase.skill
+                        ] =
+                            projectData.projects ??
+                            [];
                     }
                 }
 
@@ -177,6 +217,72 @@ export default function DashboardPage() {
         loadDashboardData();
     }, []);
 
+    useEffect(() => {
+        if (!careerRoadmap) {
+            return;
+        }
+
+        const updateCareerProgress = async () => {
+            setProgressLoading(true);
+
+            try {
+                const progressResponse =
+                    await fetch(
+                        "http://127.0.0.1:8000/career-progress/",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type":
+                                    "application/json",
+                            },
+                            body: JSON.stringify({
+                                target_role:
+                                    careerRoadmap.target_role ||
+                                    "Machine Learning Engineer",
+                                roadmap_skills:
+                                    careerRoadmap.phases?.map(
+                                        (phase) => phase.skill
+                                    ) || [],
+                                completed_skills: completedSkills,
+                                current_phase:
+                                    careerRoadmap.phases?.find(
+                                        (phase) =>
+                                            !completedSkills.includes(
+                                                phase.skill
+                                            )
+                                    )?.phase ||
+                                    careerRoadmap.phases?.length ||
+                                    1,
+                            }),
+                        }
+                    );
+
+                if (progressResponse.ok) {
+                    const progressData =
+                        await progressResponse.json();
+
+                    console.log(
+                        "Career Progress:",
+                        progressData
+                    );
+
+                    setCareerProgress(
+                        progressData.progress_percentage ?? 0
+                    );
+                }
+            } catch (error) {
+                console.error(
+                    "Career Progress Error:",
+                    error
+                );
+            } finally {
+                setProgressLoading(false);
+            }
+        };
+
+        updateCareerProgress();
+    }, [careerRoadmap, completedSkills]);
+
     return (
         <main className="min-h-screen bg-slate-950 px-6 py-10 text-white">
             <div className="mx-auto max-w-7xl">
@@ -190,8 +296,8 @@ export default function DashboardPage() {
                 </h1>
 
                 <p className="mt-2 text-slate-400">
-                    Your resume, job match, skill gaps, and career roadmap
-                    in one place.
+                    Your resume, job match, skill gaps,
+                    and career roadmap in one place.
                 </p>
 
                 {/* --------------------------------
@@ -244,9 +350,7 @@ export default function DashboardPage() {
 
                 <section className="mt-8 grid gap-6 md:grid-cols-2">
 
-                    {/* --------------------------------
-                       MISSING SKILLS
-                    -------------------------------- */}
+                    {/* MISSING SKILLS */}
 
                     <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
 
@@ -285,9 +389,7 @@ export default function DashboardPage() {
 
                     </div>
 
-                    {/* --------------------------------
-                       CAREER ROADMAP
-                    -------------------------------- */}
+                    {/* CAREER ROADMAP */}
 
                     <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
 
@@ -308,19 +410,14 @@ export default function DashboardPage() {
                                             className="rounded-lg border border-slate-800 bg-slate-950 p-4"
                                         >
 
-                                            {/* PHASE */}
-
                                             <p className="text-sm text-slate-400">
-                                                Phase {phase.phase}
+                                                Phase{" "}
+                                                {phase.phase}
                                             </p>
-
-                                            {/* SKILL */}
 
                                             <h3 className="mt-1 font-semibold">
                                                 {phase.skill}
                                             </h3>
-
-                                            {/* PRIORITY */}
 
                                             <p className="mt-1 text-sm text-slate-400">
                                                 Priority:{" "}
@@ -328,10 +425,9 @@ export default function DashboardPage() {
                                                     (item) =>
                                                         item.skill.toLowerCase() ===
                                                         phase.skill.toLowerCase()
-                                                )?.priority ?? "Medium"}
+                                                )?.priority ??
+                                                    "Medium"}
                                             </p>
-
-                                            {/* REASON */}
 
                                             <p className="mt-2 text-sm text-slate-300">
                                                 Reason:{" "}
@@ -343,13 +439,10 @@ export default function DashboardPage() {
                                                     "This skill is relevant to your target role."}
                                             </p>
 
-                                            {/* LEVEL */}
-
                                             <p className="mt-1 text-sm text-slate-400">
-                                                Level: {phase.level}
+                                                Level:{" "}
+                                                {phase.level}
                                             </p>
-
-                                            {/* GOAL */}
 
                                             <p className="mt-2 text-sm text-slate-300">
                                                 {phase.goal}
@@ -359,10 +452,6 @@ export default function DashboardPage() {
 
                                     )
                                 )}
-
-                                {/* --------------------------------
-                                   ROADMAP RECOMMENDATIONS
-                                -------------------------------- */}
 
                                 {careerRoadmap.recommendations &&
                                     careerRoadmap.recommendations.length > 0 && (
@@ -385,7 +474,10 @@ export default function DashboardPage() {
                                                             key={index}
                                                             className="text-sm text-slate-300"
                                                         >
-                                                            • {recommendation}
+                                                            •{" "}
+                                                            {
+                                                                recommendation
+                                                            }
                                                         </li>
 
                                                     )
@@ -402,12 +494,96 @@ export default function DashboardPage() {
                         ) : (
 
                             <p className="mt-3 text-slate-400">
-                                Your personalized roadmap will appear here.
+                                Your personalized roadmap
+                                will appear here.
                             </p>
 
                         )}
 
                     </div>
+
+                </section>
+
+                {/* --------------------------------
+                   CAREER PROGRESS
+                -------------------------------- */}
+
+                <section className="mt-8 rounded-xl border border-slate-800 bg-slate-900 p-6">
+
+                    <div className="flex items-center justify-between">
+
+                        <div>
+                            <h2 className="text-xl font-semibold">
+                                Career Progress
+                            </h2>
+
+                            <p className="mt-1 text-sm text-slate-400">
+                                Track your progress toward
+                                your target role.
+                            </p>
+                        </div>
+
+                        <span className="text-2xl font-bold">
+                            {careerProgress}%
+                        </span>
+
+                    </div>
+
+                    <div className="mt-5 h-3 w-full rounded-full bg-slate-800">
+
+                        <div
+                            className="h-3 rounded-full bg-blue-500 transition-all duration-500"
+                            style={{
+                                width: `${careerProgress}%`,
+                            }}
+                        />
+
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between text-sm">
+
+                        <span className="text-slate-400">
+                            Completed Skills
+                        </span>
+
+                        <span className="text-slate-300">
+                            {completedSkills.length}
+                        </span>
+
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        {careerRoadmap?.phases?.map((phase) => (
+                            <button
+                                key={phase.skill}
+                                onClick={() => {
+                                    if (completedSkills.includes(phase.skill)) {
+                                        setCompletedSkills(
+                                            completedSkills.filter(
+                                                (skill) => skill !== phase.skill
+                                            )
+                                        );
+                                    } else {
+                                        setCompletedSkills([
+                                            ...completedSkills,
+                                            phase.skill,
+                                        ]);
+                                    }
+                                }}
+                                className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800"
+                            >
+                                {completedSkills.includes(phase.skill)
+                                    ? `✓ ${phase.skill}`
+                                    : `Mark ${phase.skill} Completed`}
+                            </button>
+                        ))}
+                    </div>
+
+                    {progressLoading && (
+                        <p className="mt-4 text-sm text-slate-400">
+                            Updating career progress...
+                        </p>
+                    )}
 
                 </section>
 
@@ -508,19 +684,13 @@ export default function DashboardPage() {
                                                         className="rounded-lg border border-slate-800 bg-slate-950 p-4"
                                                     >
 
-                                                        {/* PROJECT TITLE */}
-
                                                         <h4 className="font-semibold">
                                                             {project.title}
                                                         </h4>
 
-                                                        {/* DESCRIPTION */}
-
                                                         <p className="mt-2 text-sm text-slate-300">
                                                             {project.description}
                                                         </p>
-
-                                                        {/* SKILLS */}
 
                                                         {project.skills &&
                                                             project.skills.length > 0 && (
@@ -534,11 +704,11 @@ export default function DashboardPage() {
 
                                                             )}
 
-                                                        {/* PORTFOLIO VALUE */}
-
                                                         <p className="mt-2 text-sm text-slate-400">
                                                             Portfolio Value:{" "}
-                                                            {project.portfolio_value}
+                                                            {
+                                                                project.portfolio_value
+                                                            }
                                                         </p>
 
                                                     </div>
