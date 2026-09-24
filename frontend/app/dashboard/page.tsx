@@ -525,6 +525,14 @@ export default function DashboardPage() {
 
                         <span className="text-2xl font-bold">
                             {careerProgress}%
+                            <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                                <div
+                                    className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                                    style={{
+                                        width: `${careerProgress}%`,
+                                    }}
+                                />
+                            </div>
                         </span>
 
                     </div>
